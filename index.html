@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="旅ガイド">
+<meta name="theme-color" content="#1a1814">
+<title>旅 — AI旅行ガイド</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1814;
+    --paper: #f7f4ef;
+    --warm: #c8a96e;
+    --warm-light: #f0e8d8;
+    --muted: #8a8070;
+    --border: #e0d8cc;
+    --white: #ffffff;
+    --green: #2e7d5e;
+    --red: #c0392b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--ink);
+    color: var(--white);
+    padding: 1.2rem 1.25rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .logo-wrap { display: flex; align-items: baseline; gap: 8px; }
+  .logo { font-family: 'Noto Serif JP', serif; font-size: 24px; font-weight: 700; }
+  .logo-sub { font-size: 11px; color: #a09888; letter-spacing: .12em; font-weight: 300; }
+
+  .lang-toggle {
+    display: flex;
+    gap: 4px;
+    background: rgba(255,255,255,.1);
+    border-radius: 20px;
+    padding: 3px;
+  }
+
+  .lang-btn {
+    padding: 4px 10px;
+    border-radius: 16px;
+    border: none;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    color: #a09888;
+    background: transparent;
+    transition: all .2s;
+    font-weight: 500;
+  }
+
+  .lang-btn.active { background: var(--white); color: var(--ink); }
+
+  /* API SETUP */
+  .setup-panel {
+    margin: 1rem 1.25rem 0;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .setup-toggle {
+    width: 100%;
+    padding: 12px 14px;
+    background: transparent;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .setup-toggle.ok { color: var(--green); }
+
+  .setup-body {
+    padding: 0 14px 14px;
+    display: none;
+  }
+
+  .setup-body.open { display: block; }
+
+  .setup-row { display: flex; gap: 8px; }
+
+  .setup-input {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+  }
+
+  .setup-input:focus { border-color: var(--warm); }
+  .setup-input::placeholder { color: var(--muted); }
+
+  .btn-save {
+    padding: 9px 14px;
+    background: var(--ink);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* MAIN */
+  main { flex: 1; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+
+  /* UPLOAD */
+  .upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 20px;
+    background: var(--white);
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+
+  .upload-area:active { background: var(--warm-light); border-color: var(--warm); }
+
+  .upload-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .camera-icon {
+    width: 64px; height: 64px;
+    background: var(--warm-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+  }
+
+  .camera-icon svg { width: 28px; height: 28px; stroke: var(--warm); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .upload-title { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+  .upload-sub { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* PREVIEW */
+  .preview-wrap {
+    display: none;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .preview-wrap img {
+    width: 100%; max-height: 300px; object-fit: cover; display: block;
+  }
+
+  .preview-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(26,24,20,.6) 100%);
+  }
+
+  .preview-change {
+    position: absolute; bottom: 12px; right: 12px;
+    background: rgba(255,255,255,.9);
+    color: var(--ink);
+    border: none; border-radius: 20px;
+    padding: 7px 14px; font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500; cursor: pointer;
+    position: relative;
+  }
+
+  .preview-change-wrap {
+    position: absolute; bottom: 12px; right: 12px;
+  }
+
+  .preview-change-wrap button {
+    background: rgba(255,255,255,.9);
+    color: var(--ink); border: none; border-radius: 20px;
+    padding: 7px 14px; font-size: 12px;
+    font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer;
+    position: relative;
+  }
+
+  .preview-change-wrap input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+
+  /* ANALYZE BTN */
+  .btn-analyze {
+    display: none;
+    width: 100%; padding: 16px;
+    background: var(--ink); color: var(--white);
+    border: none; border-radius: 14px;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 17px; font-weight: 700;
+    cursor: pointer; letter-spacing: .06em;
+    transition: opacity .15s, transform .1s;
+  }
+
+  .btn-analyze:active { transform: scale(.97); opacity: .85; }
+  .btn-analyze:disabled { opacity: .35; }
+
+  /* LOADING */
+  .loading { display: none; text-align: center; padding: 2.5rem 1rem; }
+
+  .loading-ring {
+    width: 48px; height: 48px;
+    border: 3px solid var(--warm-light);
+    border-top-color: var(--warm);
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text { font-size: 14px; color: var(--muted); }
+
+  /* ERROR */
+  .error-msg {
+    display: none;
+    background: #fdf0ef; border: 1px solid #f5c6c3;
+    border-radius: 12px; padding: 1rem 1.25rem;
+    font-size: 13px; color: var(--red); line-height: 1.6;
+  }
+
+  /* RESULT */
+  .result-card {
+    display: none;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    animation: fadeUp .4s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    background: var(--ink); color: var(--white);
+    padding: 1.25rem 1.5rem;
+  }
+
+  .result-place {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 20px; font-weight: 700; margin-bottom: 4px;
+  }
+
+  .result-location { font-size: 12px; color: #a09888; letter-spacing: .08em; }
+
+  .lang-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lang-tab {
+    flex: 1; padding: 12px;
+    border: none; background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .2s;
+  }
+
+  .lang-tab.active { color: var(--ink); border-bottom-color: var(--warm); }
+
+  .lang-content { display: none; padding: 1.25rem 1.5rem; }
+  .lang-content.active { display: block; }
+
+  .result-section { margin-bottom: 1.25rem; }
+  .result-section:last-child { margin-bottom: 0; }
+
+  .result-label {
+    font-size: 11px; font-weight: 500;
+    color: var(--warm); letter-spacing: .1em;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+
+  .result-text { font-size: 14px; line-height: 1.9; color: var(--ink); }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .tag {
+    background: var(--warm-light); color: #7a5c2e;
+    font-size: 12px; padding: 5px 12px;
+    border-radius: 20px; font-weight: 500;
+  }
+
+  .btn-retry {
+    width: 100%; padding: 14px;
+    background: var(--warm-light); color: #7a5c2e;
+    border: none; border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500;
+    cursor: pointer; margin-top: .5rem;
+    transition: opacity .15s;
+  }
+
+  .btn-retry:active { opacity: .7; }
+
+  footer {
+    text-align: center; padding: 1rem;
+    font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <span class="logo">旅</span>
+    <span class="logo-sub">AI GUIDE</span>
+  </div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="setUiLang('ja')">日本語</button>
+    <button class="lang-btn" onclick="setUiLang('fr')">Français</button>
+  </div>
+</header>
+
+<div class="setup-panel">
+  <button class="setup-toggle" id="setupToggle" onclick="toggleSetup()">
+    <span id="setupLabel">⚙️ APIキーを設定する</span>
+    <span id="setupArrow">▼</span>
+  </button>
+  <div class="setup-body" id="setupBody">
+    <div class="setup-row">
+      <input type="password" class="setup-input" id="apiKey" placeholder="Gemini APIキー（AIza...）" autocomplete="off">
+      <button class="btn-save" onclick="saveKey()">保存</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="upload-area" id="uploadArea">
+    <input type="file" accept="image/*" capture="environment" onchange="handleImage(this)">
+    <div class="camera-icon">
+      <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </div>
+    <p class="upload-title" id="uploadTitle">写真を撮る・選ぶ</p>
+    <p class="upload-sub" id="uploadSub">建物や場所を撮影すると<br>AIがガイドします</p>
+  </div>
+
+  <div class="preview-wrap" id="previewWrap">
+    <img id="previewImg" src="" alt="プレビュー">
+    <div class="preview-overlay"></div>
+    <div class="preview-change-wrap">
+      <button><input type="file" accept="image/*" capture="environment" onchange="handleImage(this)"><span id="changeBtn">別の写真を選ぶ</span></button>
+    </div>
+  </div>
+
+  <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">
+    <span id="analyzeBtnText">この場所を調べる</span>
+  </button>
+
+  <div class="loading" id="loading">
+    <div class="loading-ring"></div>
+    <p class="loading-text" id="loadingText">AIが場所を分析しています...</p>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <p class="result-place" id="resPlace">—</p>
+      <p class="result-location" id="resLocation">—</p>
+    </div>
+
+    <div class="lang-tabs">
+      <button class="lang-tab active" onclick="switchResultLang('ja')">🇯🇵 日本語</button>
+      <button class="lang-tab" onclick="switchResultLang('fr')">🇫🇷 Français</button>
+    </div>
+
+    <div class="lang-content active" id="content-ja">
+      <div class="result-section">
+        <p class="result-label">概要</p>
+        <p class="result-text" id="ja-overview">—</p>
+      </div>
+      <hr class="divider">
+      <div class="result-section">
+        <p class="result-label">歴史</p>
+        <p class="result-text" id="ja-history">—</p>
+      </div>
+      <hr class="divider">
+      <div class="result-section">
+        <p class="result-label">文化・見どころ</p>
+        <p class="result-text" id="ja-culture">—</p>
+      </div>
+      <hr class="divider">
+      <div class="result-section">
+        <p class="result-label">キーワード</p>
+        <div class="tag-row" id="ja-tags"></div>
+      </div>
+    </div>
+
+    <div class="lang-content" id="content-fr">
+      <div class="result-section">
+        <p class="result-label">Aperçu</p>
+        <p class="result-text" id="fr-overview">—</p>
+      </div>
+      <hr class="divider">
+      <div class="result-section">
+        <p class="result-label">Histoire</p>
+        <p class="result-text" id="fr-history">—</p>
+      </div>
+      <hr class="divider">
+      <div class="result-section">
+        <p class="result-label">Culture & À voir</p>
+        <p class="result-text" id="fr-culture">—</p>
+      </div>
+      <hr class="divider">
+      <div class="result-section">
+        <p class="result-label">Mots-clés</p>
+        <div class="tag-row" id="fr-tags"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-retry" id="retryBtn" style="display:none" onclick="reset()">
+    <span id="retryText">📸 別の写真を試す</span>
+  </button>
+</main>
+
+<footer>Powered by Gemini 1.5 Flash · 完全無料</footer>
+
+<script>
+let imageBase64 = '';
+let imageMime = '';
+let setupOpen = false;
+let uiLang = 'ja';
+
+const UI = {
+  ja: {
+    uploadTitle: '写真を撮る・選ぶ',
+    uploadSub: '建物や場所を撮影すると\nAIがガイドします',
+    analyzeBtn: 'この場所を調べる',
+    loadingText: 'AIが場所を分析しています...',
+    changeBtn: '別の写真を選ぶ',
+    retryText: '📸 別の写真を試す',
+    setupLabel_ok: '✅ APIキー設定済み',
+    setupLabel_ng: '⚙️ APIキーを設定する',
+  },
+  fr: {
+    uploadTitle: 'Prendre ou choisir une photo',
+    uploadSub: 'Photographiez un bâtiment\nle guide IA s\'active',
+    analyzeBtn: 'Analyser ce lieu',
+    loadingText: 'L\'IA analyse le lieu...',
+    changeBtn: 'Choisir une autre photo',
+    retryText: '📸 Essayer une autre photo',
+    setupLabel_ok: '✅ Clé API enregistrée',
+    setupLabel_ng: '⚙️ Configurer la clé API',
+  }
+};
+
+function setUiLang(lang) {
+  uiLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === (lang === 'ja' ? '日本語' : 'Français')));
+  const t = UI[lang];
+  document.getElementById('uploadTitle').textContent = t.uploadTitle;
+  document.getElementById('uploadSub').innerHTML = t.uploadSub.replace('\n', '<br>');
+  document.getElementById('analyzeBtnText').textContent = t.analyzeBtn;
+  document.getElementById('loadingText').textContent = t.loadingText;
+  document.getElementById('changeBtn').textContent = t.changeBtn;
+  document.getElementById('retryText').textContent = t.retryText;
+  const hasKey = !!localStorage.getItem('gemini_key');
+  document.getElementById('setupLabel').textContent = hasKey ? t.setupLabel_ok : t.setupLabel_ng;
+}
+
+function toggleSetup() {
+  setupOpen = !setupOpen;
+  document.getElementById('setupBody').classList.toggle('open', setupOpen);
+  document.getElementById('setupArrow').textContent = setupOpen ? '▲' : '▼';
+}
+
+function saveKey() {
+  const k = document.getElementById('apiKey').value.trim();
+  if (!k) return;
+  localStorage.setItem('gemini_key', k);
+  document.getElementById('setupLabel').textContent = UI[uiLang].setupLabel_ok;
+  document.getElementById('setupToggle').classList.add('ok');
+  toggleSetup();
+}
+
+function handleImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  imageMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    imageBase64 = e.target.result.split(',')[1];
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('previewWrap').style.display = 'block';
+    document.getElementById('analyzeBtn').style.display = 'block';
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('retryBtn').style.display = 'none';
+    document.getElementById('errorMsg').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function switchResultLang(lang) {
+  document.querySelectorAll('.lang-tab').forEach(t => t.classList.toggle('active', t.textContent.includes(lang === 'ja' ? '日本語' : 'Français')));
+  document.querySelectorAll('.lang-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('content-' + lang).classList.add('active');
+}
+
+async function analyze() {
+  const apiKey = localStorage.getItem('gemini_key') || document.getElementById('apiKey').value.trim();
+  if (!apiKey) {
+    showError(uiLang === 'ja'
+      ? 'APIキーを入力して保存してください。'
+      : 'Veuillez entrer et sauvegarder votre clé API.');
+    return;
+  }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('retryBtn').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+
+  const prompt = `この写真に写っている建物や場所を分析して、以下のJSON形式のみで回答してください。説明文は不要です。
+
+{
+  "place": "場所・建物の名前（不明な場合は特徴から推測）",
+  "location": "国・地域・都市",
+  "ja": {
+    "overview": "概要を2〜3文で日本語で",
+    "history": "歴史的背景を2〜3文で日本語で",
+    "culture": "文化・見どころを2〜3文で日本語で",
+    "tags": ["タグ1", "タグ2", "タグ3", "タグ4"]
+  },
+  "fr": {
+    "overview": "Aperçu en 2-3 phrases en français",
+    "history": "Histoire en 2-3 phrases en français",
+    "culture": "Culture et points d'intérêt en 2-3 phrases en français",
+    "tags": ["tag1", "tag2", "tag3", "tag4"]
+  }
+}`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { text: prompt },
+            { inline_data: { mime_type: imageMime, data: imageBase64 } }
+          ]}],
+          generationConfig: { temperature: 0.4 }
+        })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const info = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    document.getElementById('resPlace').textContent = info.place || '—';
+    document.getElementById('resLocation').textContent = info.location || '';
+
+    ['overview','history','culture'].forEach(k => {
+      document.getElementById('ja-' + k).textContent = info.ja?.[k] || '—';
+      document.getElementById('fr-' + k).textContent = info.fr?.[k] || '—';
+    });
+
+    ['ja','fr'].forEach(lang => {
+      const tagRow = document.getElementById(lang + '-tags');
+      tagRow.innerHTML = '';
+      (info[lang]?.tags || []).forEach(t => {
+        const s = document.createElement('span');
+        s.className = 'tag'; s.textContent = t;
+        tagRow.appendChild(s);
+      });
+    });
+
+    document.getElementById('resultCard').style.display = 'block';
+    document.getElementById('retryBtn').style.display = 'block';
+    switchResultLang(uiLang);
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (e) {
+    showError((uiLang === 'ja' ? 'エラー: ' : 'Erreur: ') + e.message);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function reset() {
+  imageBase64 = ''; imageMime = '';
+  document.getElementById('uploadArea').style.display = 'block';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('analyzeBtn').style.display = 'none';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('retryBtn').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+// 初期化
+window.addEventListener('load', () => {
+  const k = localStorage.getItem('gemini_key');
+  if (k) {
+    document.getElementById('apiKey').value = k;
+    document.getElementById('setupLabel').textContent = UI[uiLang].setupLabel_ok;
+    document.getElementById('setupToggle').classList.add('ok');
+  }
+});
+</script>
+</body>
+</html>
